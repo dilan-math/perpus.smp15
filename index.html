@@ -14,6 +14,8 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- SheetJS (XLSX) untuk Impor & Ekspor Excel -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
     <script>
         tailwind.config = {
@@ -112,6 +114,10 @@
                     <i data-lucide="sheet" class="w-4 h-4"></i>
                     <span>Buka Google Sheets</span>
                 </a>
+                <button onclick="openImportModal()" class="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 transition-colors">
+                    <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
+                    <span>Impor dari Excel</span>
+                </button>
                 <button onclick="exportToCSV()" class="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors">
                     <i data-lucide="download" class="w-4 h-4"></i>
                     <span>Ekspor Laporan CSV</span>
@@ -292,9 +298,15 @@
                                 <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2"></i>
                                 <input type="text" id="txSearchInput" oninput="renderTransactionsTab()" placeholder="Cari catatan atau kategori transaksi..." class="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all">
                             </div>
-                            <select id="txWalletFilter" onchange="renderTransactionsTab()" class="bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                                <option value="all">Semua Dompet</option>
-                            </select>
+                            <div class="flex items-center gap-2">
+                                <select id="txWalletFilter" onchange="renderTransactionsTab()" class="flex-1 sm:flex-none bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                    <option value="all">Semua Dompet</option>
+                                </select>
+                                <button onclick="openImportModal()" class="inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs sm:text-sm font-semibold border border-indigo-200/60 transition-colors shrink-0">
+                                    <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
+                                    <span>Impor Excel</span>
+                                </button>
+                            </div>
                         </div>
 
                         <!-- Type Filter Pills -->
@@ -501,6 +513,90 @@
         </div>
     </div>
 
+    <!-- ==================== MODAL: IMPORT EXCEL ==================== -->
+    <div id="importModal" class="fixed inset-0 z-50 hidden items-end sm:items-center justify-center bg-slate-900/50 backdrop-blur-xs p-0 sm:p-4">
+        <div class="bg-white w-full sm:max-w-2xl rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden animate-slide-up max-h-[92vh] flex flex-col">
+            <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                        <i data-lucide="file-spreadsheet" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-base sm:text-lg text-slate-900">Impor Transaksi dari Excel</h3>
+                        <p class="text-[11px] text-slate-400">Mendukung format .xlsx, .xls, dan .csv</p>
+                    </div>
+                </div>
+                <button onclick="closeModal('importModal')" class="p-2 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <div class="p-6 space-y-5 overflow-y-auto">
+                <!-- Template Download Banner -->
+                <div class="p-4 rounded-2xl bg-indigo-50/80 border border-indigo-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div class="space-y-0.5">
+                        <p class="text-xs font-bold text-indigo-950">Gunakan Template Standar Sakusaku</p>
+                        <p class="text-[11px] text-indigo-700/80">Kolom: Tanggal, Jenis, Kategori, Dompet Asal, Dompet Tujuan, Nominal, Catatan</p>
+                    </div>
+                    <button type="button" onclick="downloadExcelTemplate()" class="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-xs transition-all shrink-0">
+                        <i data-lucide="download" class="w-3.5 h-3.5"></i>
+                        <span>Unduh Template (.xlsx)</span>
+                    </button>
+                </div>
+
+                <!-- File Upload Dropzone -->
+                <div>
+                    <label for="excelFileInput" class="flex flex-col items-center justify-center w-full h-36 border-2 border-dashed border-slate-300 hover:border-indigo-500 rounded-2xl bg-slate-50/70 hover:bg-indigo-50/30 cursor-pointer transition-all p-4 text-center">
+                        <div class="w-10 h-10 rounded-2xl bg-white shadow-xs text-indigo-600 flex items-center justify-center mb-2">
+                            <i data-lucide="upload-cloud" class="w-5 h-5"></i>
+                        </div>
+                        <p id="excelFileNameLabel" class="text-xs sm:text-sm font-bold text-slate-700">Klik untuk pilih file Excel (.xlsx / .xls / .csv)</p>
+                        <p class="text-[11px] text-slate-400 mt-1">Pastikan baris pertama berisi header nama kolom</p>
+                        <input id="excelFileInput" type="file" accept=".xlsx,.xls,.csv" onchange="handleExcelFileSelect(event)" class="hidden">
+                    </label>
+                </div>
+
+                <!-- Preview Section (Hidden until file uploaded) -->
+                <div id="importPreviewSection" class="hidden space-y-3">
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                        <h4 class="text-xs font-bold uppercase tracking-wider text-slate-500">Pratinjau Data</h4>
+                        <div class="flex items-center gap-2 text-xs">
+                            <span id="importValidBadge" class="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 font-bold">0 Valid</span>
+                            <span id="importInvalidBadge" class="hidden px-2.5 py-1 rounded-lg bg-rose-50 text-rose-700 font-bold">0 Dilewati</span>
+                        </div>
+                    </div>
+
+                    <div class="border border-slate-200 rounded-2xl overflow-hidden max-h-56 overflow-y-auto">
+                        <table class="w-full text-left border-collapse text-xs">
+                            <thead class="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200 sticky top-0">
+                                <tr>
+                                    <th class="py-2.5 px-3">Tanggal</th>
+                                    <th class="py-2.5 px-3">Jenis</th>
+                                    <th class="py-2.5 px-3">Kategori</th>
+                                    <th class="py-2.5 px-3">Dompet</th>
+                                    <th class="py-2.5 px-3 text-right">Nominal</th>
+                                    <th class="py-2.5 px-3">Catatan</th>
+                                </tr>
+                            </thead>
+                            <tbody id="importPreviewBody" class="divide-y divide-slate-100">
+                                <!-- Populated dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="px-6 py-4 border-t border-slate-100 bg-slate-50/60 flex items-center justify-end gap-2.5">
+                <button type="button" onclick="closeModal('importModal')" class="px-4 py-2.5 rounded-xl bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 text-xs font-bold">
+                    Batal
+                </button>
+                <button type="button" id="confirmImportBtn" onclick="confirmImportTransactions()" disabled class="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white text-xs font-bold shadow-sm transition-all">
+                    Impor Transaksi
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- ==================== MODAL: ADD / EDIT WALLET ==================== -->
     <div id="walletModal" class="fixed inset-0 z-50 hidden items-end sm:items-center justify-center bg-slate-900/50 backdrop-blur-xs p-0 sm:p-4">
         <div class="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden animate-slide-up">
@@ -701,6 +797,7 @@
         let dashDonutChart = null;
         let analyticsDonutChart = null;
         let analyticsBarChart = null;
+        let pendingImportTransactions = [];
 
         // ==================== PAYDAY CYCLE ENGINE (25th to 24th) ====================
         function getActiveCycleAnchor(refDate = new Date()) {
@@ -771,8 +868,6 @@
         function shiftCycle(direction) {
             const select = document.getElementById('periodFilter');
             const idx = select.selectedIndex;
-            // Index 0 adalah masa depan (+1), index makin besar makin ke masa lalu
-            // direction: -1 (mundur ke periode lalu -> idx + 1), +1 (maju ke periode baru -> idx - 1)
             const targetIdx = idx - direction;
             if (targetIdx >= 0 && targetIdx < select.options.length - 1) {
                 select.selectedIndex = targetIdx;
@@ -949,7 +1044,6 @@
                 const res = await fetch(url);
                 const cloudData = await res.json();
 
-                // Jika cloud masih kosong, unggah data lokal pertama kali
                 if (!cloudData || cloudData.status === 'empty' || !Array.isArray(cloudData.wallets)) {
                     const pushed = await pushToGoogleSheets();
                     if (pushed && showNotification) showToast('Data awal berhasil disinkronkan ke Google Sheets');
@@ -960,7 +1054,6 @@
                 const localUpdated = Number(appState.updatedAt) || 0;
 
                 if (cloudUpdated > localUpdated) {
-                    // Data di Google Sheets lebih baru -> Tarik ke perangkat ini
                     appState = {
                         wallets: cloudData.wallets || [],
                         transactions: cloudData.transactions || [],
@@ -973,7 +1066,6 @@
                     refreshAllViews();
                     if (showNotification) showToast('Data terbaru ditarik dari Google Sheets');
                 } else if (localUpdated > cloudUpdated) {
-                    // Data lokal lebih baru -> Kirim ke Google Sheets
                     await pushToGoogleSheets();
                     if (showNotification) showToast('Data disinkronkan ke Google Sheets');
                 } else {
@@ -1011,7 +1103,7 @@
 
         function parseCurrencyInput(str) {
             if (!str) return 0;
-            return parseInt(str.replace(/\D/g, ''), 10) || 0;
+            return parseInt(String(str).replace(/\D/g, ''), 10) || 0;
         }
 
         function getCategoryInfo(type, catId) {
@@ -1076,11 +1168,9 @@
         function switchTab(tabName) {
             currentTab = tabName;
 
-            // Hide all sections
             document.querySelectorAll('.tab-section').forEach(sec => sec.classList.add('hidden'));
             document.getElementById(`tab-${tabName}`).classList.remove('hidden');
 
-            // Update Desktop Sidebar Active State
             document.querySelectorAll('.nav-btn').forEach(btn => {
                 const isActive = btn.dataset.nav === tabName;
                 btn.className = isActive
@@ -1088,7 +1178,6 @@
                     : 'nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-all';
             });
 
-            // Update Mobile Bottom Nav Active State
             document.querySelectorAll('.mnav-btn').forEach(btn => {
                 const isActive = btn.dataset.mnav === tabName;
                 btn.className = isActive
@@ -1096,7 +1185,6 @@
                     : 'mnav-btn flex flex-col items-center gap-1 py-1 px-3 rounded-xl text-slate-400';
             });
 
-            // Update Desktop Header Title
             const titles = {
                 dashboard: ['Beranda & Ringkasan', 'Pantau arus kas harianmu dengan mudah'],
                 transactions: ['Riwayat Transaksi', 'Cari, filter, dan kelola semua catatan keuangan'],
@@ -1176,10 +1264,8 @@
                 </button>
             `;
 
-            // Render Mini Donut Chart
             renderDashDonut(periodTxs);
 
-            // Render Recent Transactions (Max 6)
             const sortedTxs = [...periodTxs].sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id)).slice(0, 6);
             const recentEl = document.getElementById('dashRecentTransactions');
             if (sortedTxs.length === 0) {
@@ -1285,7 +1371,6 @@
         }
 
         function renderTransactionsTab() {
-            // Sync wallet filter dropdown
             const walletSelect = document.getElementById('txWalletFilter');
             const currentVal = walletSelect.value;
             walletSelect.innerHTML = `<option value="all">Semua Dompet</option>` +
@@ -1328,7 +1413,6 @@
                 return;
             }
 
-            // Group by date
             const groups = {};
             list.forEach(tx => {
                 if (!groups[tx.date]) groups[tx.date] = [];
@@ -1460,7 +1544,6 @@
             const periodTxs = getFilteredTransactionsByPeriod();
             const expenses = periodTxs.filter(t => t.type === 'expense');
 
-            // 1. Donut Chart
             const donutCanvas = document.getElementById('analyticsDonutChart');
             const noDonut = document.getElementById('analyticsNoDonut');
             const breakdownEl = document.getElementById('analyticsCategoryBreakdown');
@@ -1534,8 +1617,6 @@
                 }).join('');
             }
 
-            // 2. Bar Chart (Last 6 Months)
-            // 2. Bar Chart (Last 6 Payday Cycles: 25 - 24)
             const barCanvas = document.getElementById('analyticsBarChart');
             if (analyticsBarChart) {
                 analyticsBarChart.destroy();
@@ -1673,7 +1754,6 @@
                 }).join('');
             }
 
-            // Overall Budget Banner
             const overallPct = totalLimit > 0 ? Math.min(100, Math.round((totalSpentInBudget / totalLimit) * 100)) : 0;
             document.getElementById('overallBudgetCard').innerHTML = `
                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
@@ -1715,7 +1795,6 @@
             document.getElementById('txId').value = txToEdit ? txToEdit.id : '';
             document.getElementById('txModalTitle').textContent = txToEdit ? 'Edit Transaksi' : 'Catat Transaksi';
 
-            // Populate wallet selects
             const walletOpts = appState.wallets.map(w => `<option value="${w.id}">${w.name} (${formatIDR(getWalletBalance(w.id))})</option>`).join('');
             document.getElementById('txWalletId').innerHTML = walletOpts;
             document.getElementById('txToWalletId').innerHTML = walletOpts;
@@ -1743,7 +1822,6 @@
         function setFormTxType(type, selectedCatId = null) {
             document.getElementById('txType').value = type;
 
-            // Update toggle buttons styling
             ['expense', 'income', 'transfer'].forEach(t => {
                 const btn = document.getElementById(`typeBtn-${t}`);
                 if (t === type) {
@@ -1860,6 +1938,317 @@
             openModal('confirmModal');
         }
 
+        // ==================== EXCEL IMPORT ENGINE ====================
+        function openImportModal() {
+            pendingImportTransactions = [];
+            document.getElementById('excelFileInput').value = '';
+            document.getElementById('excelFileNameLabel').textContent = 'Klik untuk pilih file Excel (.xlsx / .xls / .csv)';
+            document.getElementById('importPreviewSection').classList.add('hidden');
+            document.getElementById('importPreviewBody').innerHTML = '';
+            const btn = document.getElementById('confirmImportBtn');
+            btn.disabled = true;
+            btn.textContent = 'Impor Transaksi';
+            openModal('importModal');
+        }
+
+        function downloadExcelTemplate() {
+            if (typeof XLSX === 'undefined') {
+                showToast('Library Excel belum termuat, periksa koneksi internet');
+                return;
+            }
+
+            const todayStr = new Date().toISOString().split('T')[0];
+            const firstWallet = appState.wallets[0]?.name || 'Dompet Tunai';
+            const secondWallet = appState.wallets[1]?.name || 'Bank BCA';
+
+            const sampleRows = [
+                {
+                    'Tanggal': todayStr,
+                    'Jenis': 'Pengeluaran',
+                    'Kategori': 'Makan & Minum',
+                    'Dompet Asal': firstWallet,
+                    'Dompet Tujuan': '',
+                    'Nominal': 35000,
+                    'Catatan': 'Makan siang ayam bakar'
+                },
+                {
+                    'Tanggal': todayStr,
+                    'Jenis': 'Pemasukan',
+                    'Kategori': 'Gaji Bulanan',
+                    'Dompet Asal': secondWallet,
+                    'Dompet Tujuan': '',
+                    'Nominal': 5000000,
+                    'Catatan': 'Gaji bulan ini'
+                },
+                {
+                    'Tanggal': todayStr,
+                    'Jenis': 'Transfer',
+                    'Kategori': 'Transfer',
+                    'Dompet Asal': secondWallet,
+                    'Dompet Tujuan': firstWallet,
+                    'Nominal': 250000,
+                    'Catatan': 'Tarik tunai ATM'
+                }
+            ];
+
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.json_to_sheet(sampleRows);
+            ws['!cols'] = [
+                { wch: 14 }, { wch: 14 }, { wch: 20 },
+                { wch: 18 }, { wch: 18 }, { wch: 15 }, { wch: 28 }
+            ];
+            XLSX.utils.book_append_sheet(wb, ws, 'Transaksi');
+
+            // Sheet Referensi Dompet & Kategori pengguna
+            const refData = [
+                { 'Daftar Dompet Anda': '---', 'Kategori Pengeluaran': '---', 'Kategori Pemasukan': '---' }
+            ];
+            const maxLen = Math.max(
+                appState.wallets.length,
+                getCategoriesByType('expense').length,
+                getCategoriesByType('income').length
+            );
+            const expCats = getCategoriesByType('expense');
+            const incCats = getCategoriesByType('income');
+
+            const refRows = [];
+            for (let i = 0; i < maxLen; i++) {
+                refRows.push({
+                    'Dompet Tersedia': appState.wallets[i]?.name || '',
+                    'Kategori Pengeluaran': expCats[i]?.name || '',
+                    'Kategori Pemasukan': incCats[i]?.name || ''
+                });
+            }
+            const wsRef = XLSX.utils.json_to_sheet(refRows);
+            wsRef['!cols'] = [{ wch: 22 }, { wch: 24 }, { wch: 24 }];
+            XLSX.utils.book_append_sheet(wb, wsRef, 'Referensi');
+
+            XLSX.writeFile(wb, 'Template_Impor_Sakusaku.xlsx');
+            showToast('Template Excel berhasil diunduh');
+        }
+
+        function normalizeExcelDate(rawVal) {
+            if (!rawVal) return null;
+
+            // 1. Jika Excel Serial Date Number (misal: 45678)
+            if (typeof rawVal === 'number') {
+                const parsed = XLSX.SSF.parse_date_code(rawVal);
+                if (parsed && parsed.y && parsed.m && parsed.d) {
+                    return `${parsed.y}-${String(parsed.m).padStart(2, '0')}-${String(parsed.d).padStart(2, '0')}`;
+                }
+            }
+
+            // 2. Jika objek Date JS
+            if (rawVal instanceof Date && !isNaN(rawVal.getTime())) {
+                return rawVal.toISOString().split('T')[0];
+            }
+
+            const str = String(rawVal).trim();
+
+            // 3. Format YYYY-MM-DD atau YYYY/MM/DD
+            const isoMatch = str.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
+            if (isoMatch) {
+                return `${isoMatch[1]}-${isoMatch[2].padStart(2, '0')}-${isoMatch[3].padStart(2, '0')}`;
+            }
+
+            // 4. Format DD/MM/YYYY atau DD-MM-YYYY
+            const dmyMatch = str.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})/);
+            if (dmyMatch) {
+                return `${dmyMatch[3]}-${dmyMatch[2].padStart(2, '0')}-${dmyMatch[1].padStart(2, '0')}`;
+            }
+
+            return null;
+        }
+
+        function normalizeTransactionType(rawType) {
+            const val = String(rawType || '').toLowerCase().trim();
+            if (['pemasukan', 'income', 'masuk', 'kredit', 'in'].includes(val)) return 'income';
+            if (['transfer', 'pindah', 'mutasi'].includes(val)) return 'transfer';
+            if (['pengeluaran', 'expense', 'keluar', 'debit', 'out'].includes(val)) return 'expense';
+            return 'expense';
+        }
+
+        function matchWalletByName(rawName, fallbackFirst = true) {
+            const clean = String(rawName || '').toLowerCase().trim();
+            if (!clean) return fallbackFirst ? appState.wallets[0] : null;
+
+            const exact = appState.wallets.find(w => w.name.toLowerCase().trim() === clean);
+            if (exact) return exact;
+
+            const partial = appState.wallets.find(w =>
+                w.name.toLowerCase().includes(clean) || clean.includes(w.name.toLowerCase())
+            );
+            if (partial) return partial;
+
+            return fallbackFirst ? appState.wallets[0] : null;
+        }
+
+        function matchCategoryByName(type, rawCat) {
+            if (type === 'transfer') return 'transfer';
+            const list = getCategoriesByType(type);
+            const clean = String(rawCat || '').toLowerCase().trim();
+            const fallbackId = type === 'income' ? 'lainnya_inc' : 'lainnya_exp';
+
+            if (!clean) return fallbackId;
+
+            const exact = list.find(c => c.name.toLowerCase() === clean || c.id.toLowerCase() === clean);
+            if (exact) return exact.id;
+
+            const partial = list.find(c =>
+                c.name.toLowerCase().includes(clean) || clean.includes(c.name.toLowerCase())
+            );
+            return partial ? partial.id : fallbackId;
+        }
+
+        function getRowFieldValue(rowObj, candidateKeys) {
+            const keys = Object.keys(rowObj);
+            for (const cand of candidateKeys) {
+                const foundKey = keys.find(k => k.toLowerCase().trim() === cand);
+                if (foundKey !== undefined && rowObj[foundKey] !== '') {
+                    return rowObj[foundKey];
+                }
+            }
+            return '';
+        }
+
+        function handleExcelFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            if (typeof XLSX === 'undefined') {
+                showToast('Library Excel belum siap, coba muat ulang halaman');
+                return;
+            }
+
+            document.getElementById('excelFileNameLabel').textContent = `File dipilih: ${file.name}`;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array', cellDates: true });
+                    const firstSheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[firstSheetName];
+                    const rawRows = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
+
+                    if (!rawRows || rawRows.length === 0) {
+                        showToast('File Excel kosong atau tidak memiliki baris data');
+                        return;
+                    }
+
+                    pendingImportTransactions = [];
+                    let invalidCount = 0;
+                    const previewRowsHtml = [];
+
+                    rawRows.forEach((row, index) => {
+                        const rawDate = getRowFieldValue(row, ['tanggal', 'date', 'tgl', 'waktu']);
+                        const rawType = getRowFieldValue(row, ['jenis', 'tipe', 'type', 'jenis transaksi']);
+                        const rawCat = getRowFieldValue(row, ['kategori', 'category', 'pos']);
+                        const rawWallet = getRowFieldValue(row, ['dompet asal', 'dompet', 'wallet', 'akun', 'rekening']);
+                        const rawToWallet = getRowFieldValue(row, ['dompet tujuan', 'ke dompet', 'to wallet', 'tujuan']);
+                        const rawAmount = getRowFieldValue(row, ['nominal', 'nominal (idr)', 'jumlah', 'amount', 'total', 'harga']);
+                        const rawNote = getRowFieldValue(row, ['catatan', 'keterangan', 'note', 'deskripsi']);
+
+                        const dateStr = normalizeExcelDate(rawDate);
+                        const amountNum = typeof rawAmount === 'number'
+                            ? Math.round(Math.abs(rawAmount))
+                            : parseCurrencyInput(String(rawAmount));
+
+                        if (!dateStr || amountNum <= 0) {
+                            invalidCount++;
+                            return;
+                        }
+
+                        const type = normalizeTransactionType(rawType);
+                        const category = matchCategoryByName(type, rawCat);
+                        const srcWallet = matchWalletByName(rawWallet, true);
+                        let destWallet = type === 'transfer' ? matchWalletByName(rawToWallet, false) : null;
+
+                        if (type === 'transfer' && (!destWallet || destWallet.id === srcWallet.id)) {
+                            destWallet = appState.wallets.find(w => w.id !== srcWallet.id) || srcWallet;
+                        }
+
+                        const txObj = {
+                            id: `tx_imp_${Date.now()}_${index}`,
+                            type,
+                            amount: amountNum,
+                            category,
+                            walletId: srcWallet.id,
+                            toWalletId: type === 'transfer' ? destWallet.id : null,
+                            date: dateStr,
+                            note: String(rawNote || '').trim()
+                        };
+
+                        pendingImportTransactions.push(txObj);
+
+                        const catInfo = getCategoryInfo(type, category);
+                        const typeBadge = type === 'income'
+                            ? '<span class="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 font-semibold">Pemasukan</span>'
+                            : (type === 'transfer'
+                                ? '<span class="px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 font-semibold">Transfer</span>'
+                                : '<span class="px-2 py-0.5 rounded-md bg-rose-50 text-rose-700 font-semibold">Pengeluaran</span>');
+
+                        const walletLabel = type === 'transfer'
+                            ? `${srcWallet.name} → ${destWallet.name}`
+                            : srcWallet.name;
+
+                        previewRowsHtml.push(`
+                            <tr class="hover:bg-slate-50/70">
+                                <td class="py-2 px-3 font-medium text-slate-700 whitespace-nowrap">${dateStr}</td>
+                                <td class="py-2 px-3 whitespace-nowrap">${typeBadge}</td>
+                                <td class="py-2 px-3 text-slate-700">${catInfo.name}</td>
+                                <td class="py-2 px-3 text-slate-600">${walletLabel}</td>
+                                <td class="py-2 px-3 text-right font-bold text-slate-900 whitespace-nowrap">${formatIDR(amountNum)}</td>
+                                <td class="py-2 px-3 text-slate-500 max-w-[140px] truncate">${txObj.note || '-'}</td>
+                            </tr>
+                        `);
+                    });
+
+                    const previewSec = document.getElementById('importPreviewSection');
+                    previewSec.classList.remove('hidden');
+
+                    document.getElementById('importValidBadge').textContent = `${pendingImportTransactions.length} Valid`;
+                    const invBadge = document.getElementById('importInvalidBadge');
+                    if (invalidCount > 0) {
+                        invBadge.textContent = `${invalidCount} Baris Dilewati`;
+                        invBadge.classList.remove('hidden');
+                    } else {
+                        invBadge.classList.add('hidden');
+                    }
+
+                    document.getElementById('importPreviewBody').innerHTML = previewRowsHtml.length > 0
+                        ? previewRowsHtml.join('')
+                        : `<tr><td colspan="6" class="py-6 text-center text-slate-400">Tidak ada baris transaksi valid yang dapat diimpor.</td></tr>`;
+
+                    const confirmBtn = document.getElementById('confirmImportBtn');
+                    if (pendingImportTransactions.length > 0) {
+                        confirmBtn.disabled = false;
+                        confirmBtn.textContent = `Impor ${pendingImportTransactions.length} Transaksi`;
+                    } else {
+                        confirmBtn.disabled = true;
+                        confirmBtn.textContent = 'Impor Transaksi';
+                    }
+                } catch (err) {
+                    console.error('Excel parse error:', err);
+                    showToast('Gagal membaca file Excel. Pastikan format file valid.');
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function confirmImportTransactions() {
+            if (pendingImportTransactions.length === 0) return;
+
+            const count = pendingImportTransactions.length;
+            appState.transactions.push(...pendingImportTransactions);
+            pendingImportTransactions = [];
+
+            saveData();
+            closeModal('importModal');
+            refreshAllViews();
+            showToast(`${count} transaksi berhasil diimpor dari Excel`);
+        }
+
         // --- Wallet Modal ---
         function openWalletModal(walletToEdit = null) {
             document.getElementById('walletId').value = walletToEdit ? walletToEdit.id : '';
@@ -1966,7 +2355,6 @@
                 if (!appState.customCategories) appState.customCategories = { expense: [], income: [] };
                 if (!Array.isArray(appState.customCategories.expense)) appState.customCategories.expense = [];
 
-                // Cek apakah nama kategori sudah ada
                 const existingCat = getCategoriesByType('expense').find(c => c.name.toLowerCase() === newName.toLowerCase());
                 if (existingCat) {
                     categoryId = existingCat.id;
