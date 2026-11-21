@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sakusaku - Pencatat Keuangan Harian</title>
+    <title>Saku Uzi</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Google Fonts: Plus Jakarta Sans & Inter -->
@@ -82,7 +82,7 @@
                 </div>
                 <div>
                     <h1 class="font-extrabold text-xl tracking-tight text-slate-900">Sakusaku<span class="text-indigo-600">.</span></h1>
-                    <p class="text-[11px] font-medium text-slate-400">Keuangan Harian Cerdas</p>
+                    <p class="text-[11px] font-medium text-slate-400">Keuangan Harian Uzi</p>
                 </div>
             </div>
 
@@ -114,6 +114,10 @@
                     <i data-lucide="sheet" class="w-4 h-4"></i>
                     <span>Buka Google Sheets</span>
                 </a>
+                <button onclick="pullFromCloudForce()" class="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold text-sky-700 bg-sky-50 hover:bg-sky-100 transition-colors">
+                    <i data-lucide="cloud-download" class="w-4 h-4"></i>
+                    <span>Tarik Data dari Sheets</span>
+                </button>
                 <button onclick="openImportModal()" class="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 transition-colors">
                     <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
                     <span>Impor dari Excel</span>
@@ -152,11 +156,16 @@
                     <!-- Period Filter & Quick Add Desktop -->
                     <div class="flex items-center gap-2 sm:gap-3">
                         <!-- Auto Sync Status Pill -->
-                        <button onclick="manualSyncNow()" id="headerSyncBtn" title="Klik untuk sinkronisasi sekarang dengan Google Sheets" class="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200/80 text-slate-700 text-xs font-semibold transition-colors">
-                            <span id="syncStatusDot" class="w-2 h-2 rounded-full bg-emerald-500"></span>
-                            <i id="syncStatusIcon" data-lucide="cloud-check" class="w-3.5 h-3.5 text-emerald-600"></i>
-                            <span id="syncStatusText" class="hidden sm:inline">Tersinkron</span>
-                        </button>
+                        <div class="inline-flex items-center rounded-xl bg-slate-100 p-0.5">
+                            <button onclick="manualSyncNow()" id="headerSyncBtn" title="Klik untuk sinkronisasi otomatis dengan Google Sheets" class="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg hover:bg-white text-slate-700 text-xs font-semibold transition-colors">
+                                <span id="syncStatusDot" class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                                <i id="syncStatusIcon" data-lucide="cloud-check" class="w-3.5 h-3.5 text-emerald-600"></i>
+                                <span id="syncStatusText" class="hidden sm:inline">Tersinkron</span>
+                            </button>
+                            <button onclick="pullFromCloudForce()" title="Tarik paksa data dari Google Sheets (Gunakan setelah memulihkan histori spreadsheet)" class="p-1.5 rounded-lg hover:bg-white text-sky-600 transition-colors">
+                                <i data-lucide="cloud-download" class="w-3.5 h-3.5"></i>
+                            </button>
+                        </div>
 
                         <!-- Payday Cycle Navigator (25 - 24) -->
                         <div class="flex items-center bg-slate-100 rounded-xl p-0.5">
@@ -805,7 +814,6 @@
             const day = refDate.getDate();
             let year = refDate.getFullYear();
             let month = refDate.getMonth(); // 0 - 11
-            // Jika tanggal < 25, siklus dimulai pada tanggal 25 bulan sebelumnya
             if (day < 25) {
                 month -= 1;
                 if (month < 0) {
@@ -847,7 +855,6 @@
             const anchor = getActiveCycleAnchor(new Date());
             cycleList = [];
 
-            // Bangun 12 siklus gajian (dari 1 siklus ke depan sampai 10 siklus ke belakang)
             for (let offset = 1; offset >= -10; offset--) {
                 const d = new Date(anchor.year, anchor.month + offset, 1);
                 cycleList.push(buildCycleObject(d.getFullYear(), d.getMonth()));
@@ -910,7 +917,7 @@
 
             return {
                 hideBalance: false,
-                updatedAt: 0, // Set 0 agar data contoh tidak pernah mengalahkan data cloud
+                updatedAt: 0,
                 isDefaultSeed: true,
                 customCategories: { expense: [], income: [] },
                 wallets: [
@@ -957,7 +964,7 @@
 
         function saveData(triggerCloudPush = true) {
             appState.updatedAt = Date.now();
-            appState.isDefaultSeed = false; // Tandai bahwa ini data asli user
+            appState.isDefaultSeed = false;
             localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
             if (triggerCloudPush) {
                 schedulePushToGoogleSheets();
@@ -978,8 +985,8 @@
             const lastSync = localStorage.getItem(LAST_SYNC_KEY);
             if (btn) {
                 btn.title = lastSync
-                    ? `Terakhir sinkron: ${lastSync} (Klik untuk refresh)`
-                    : 'Sinkronisasi otomatis Google Sheets (Klik untuk refresh)';
+                    ? `Terakhir sinkron: ${lastSync} (Klik untuk sinkron otomatis)`
+                    : 'Sinkronisasi otomatis Google Sheets';
             }
 
             const styles = {
@@ -1001,6 +1008,45 @@
 
         async function manualSyncNow() {
             await syncTwoWayWithGoogleSheets(true);
+        }
+
+        // Tarik paksa data dari Google Sheets (abaikan timestamp lokal — cocok setelah restore histori versi spreadsheet)
+        async function pullFromCloudForce() {
+            const url = getSyncUrl();
+            if (!url) return;
+            clearTimeout(syncPushTimer);
+            updateSyncUI('syncing');
+            try {
+                const res = await fetch(url);
+                const cloudData = await res.json();
+
+                if (!cloudData || cloudData.status === 'empty' || !Array.isArray(cloudData.wallets)) {
+                    updateSyncUI('synced');
+                    showToast('Data di Google Sheets masih kosong');
+                    return;
+                }
+
+                const nowTs = Date.now();
+                appState = {
+                    wallets: cloudData.wallets || [],
+                    transactions: cloudData.transactions || [],
+                    budgets: cloudData.budgets || [],
+                    customCategories: cloudData.customCategories || { expense: [], income: [] },
+                    hideBalance: appState.hideBalance,
+                    updatedAt: nowTs,
+                    isDefaultSeed: false
+                };
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
+                refreshAllViews();
+
+                // Perbarui timestamp di cloud agar sejajar dengan waktu pemulihan ini
+                await pushToGoogleSheets();
+                showToast('Berhasil menarik & memulihkan data dari Google Sheets');
+            } catch (err) {
+                console.error('Force pull error:', err);
+                updateSyncUI('error', 'Gagal Sync');
+                showToast('Gagal menarik data dari Google Sheets');
+            }
         }
 
         function schedulePushToGoogleSheets() {
@@ -1047,7 +1093,6 @@
                 const res = await fetch(url);
                 const cloudData = await res.json();
 
-                // Jika cloud benar-benar kosong, baru unggah data lokal
                 if (!cloudData || cloudData.status === 'empty' || !Array.isArray(cloudData.wallets)) {
                     const pushed = await pushToGoogleSheets();
                     if (pushed && showNotification) showToast('Data awal berhasil disinkronkan ke Google Sheets');
@@ -1057,23 +1102,26 @@
                 const cloudUpdated = Number(cloudData.updatedAt) || 0;
                 const localUpdated = Number(appState.updatedAt) || 0;
 
-                // Jika lokal masih data contoh bawaan (isDefaultSeed) atau cloud lebih baru -> Tarik dari cloud
-                if (appState.isDefaultSeed || cloudUpdated > localUpdated) {
-                    appState = {
-                        wallets: cloudData.wallets || [],
-                        transactions: cloudData.transactions || [],
-                        budgets: cloudData.budgets || [],
-                        customCategories: cloudData.customCategories || { expense: [], income: [] },
-                        hideBalance: appState.hideBalance,
-                        updatedAt: cloudUpdated || Date.now(),
-                        isDefaultSeed: false
-                    };
-                    localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
-                    refreshAllViews();
-                    if (showNotification) showToast('Data terbaru ditarik dari Google Sheets');
-                } else if (localUpdated > cloudUpdated && !appState.isDefaultSeed) {
-                    await pushToGoogleSheets();
-                    if (showNotification) showToast('Data disinkronkan ke Google Sheets');
+                // Deteksi jika spreadsheet baru saja dipulihkan ke versi lama (cloudUpdated < localUpdated saat cek masuk/fokus)
+                // Atau jika data lokal masih data contoh (isDefaultSeed) / cloud lebih baru -> Tarik dari cloud
+                if (appState.isDefaultSeed || cloudUpdated !== localUpdated) {
+                    if (appState.isDefaultSeed || cloudUpdated > localUpdated) {
+                        appState = {
+                            wallets: cloudData.wallets || [],
+                            transactions: cloudData.transactions || [],
+                            budgets: cloudData.budgets || [],
+                            customCategories: cloudData.customCategories || { expense: [], income: [] },
+                            hideBalance: appState.hideBalance,
+                            updatedAt: cloudUpdated || Date.now(),
+                            isDefaultSeed: false
+                        };
+                        localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
+                        refreshAllViews();
+                        if (showNotification) showToast('Data terbaru ditarik dari Google Sheets');
+                    } else if (localUpdated > cloudUpdated && !appState.isDefaultSeed) {
+                        await pushToGoogleSheets();
+                        if (showNotification) showToast('Data disinkronkan ke Google Sheets');
+                    }
                 } else {
                     if (showNotification) showToast('Semua data sudah sinkron');
                 }
@@ -1167,7 +1215,7 @@
             setTimeout(() => {
                 toast.classList.add('hidden');
                 toast.classList.remove('flex');
-            }, 2800);
+            }, 3000);
         }
 
         // ==================== NAVIGATION & TABS ====================
@@ -2005,7 +2053,6 @@
             ];
             XLSX.utils.book_append_sheet(wb, ws, 'Transaksi');
 
-            // Sheet Referensi Dompet & Kategori pengguna
             const maxLen = Math.max(
                 appState.wallets.length,
                 getCategoriesByType('expense').length,
@@ -2033,7 +2080,6 @@
         function normalizeExcelDate(rawVal) {
             if (!rawVal) return null;
 
-            // 1. Jika Excel Serial Date Number (misal: 45678)
             if (typeof rawVal === 'number') {
                 const parsed = XLSX.SSF.parse_date_code(rawVal);
                 if (parsed && parsed.y && parsed.m && parsed.d) {
@@ -2041,20 +2087,17 @@
                 }
             }
 
-            // 2. Jika objek Date JS
             if (rawVal instanceof Date && !isNaN(rawVal.getTime())) {
                 return rawVal.toISOString().split('T')[0];
             }
 
             const str = String(rawVal).trim();
 
-            // 3. Format YYYY-MM-DD atau YYYY/MM/DD
             const isoMatch = str.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
             if (isoMatch) {
                 return `${isoMatch[1]}-${isoMatch[2].padStart(2, '0')}-${isoMatch[3].padStart(2, '0')}`;
             }
 
-            // 4. Format DD/MM/YYYY atau DD-MM-YYYY
             const dmyMatch = str.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})/);
             if (dmyMatch) {
                 return `${dmyMatch[3]}-${dmyMatch[2].padStart(2, '0')}-${dmyMatch[1].padStart(2, '0')}`;
@@ -2450,6 +2493,13 @@
                 syncTwoWayWithGoogleSheets(false);
             } else {
                 updateSyncUI('offline');
+            }
+        });
+
+        // Otomatis cek pembaruan dari Google Sheets ketika pengguna kembali membuka tab browser
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible' && getSyncUrl()) {
+                syncTwoWayWithGoogleSheets(false);
             }
         });
     </script>
